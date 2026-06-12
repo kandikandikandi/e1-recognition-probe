@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Model artifacts (LoRA checkpoints, generated datasets, eval outputs)
+checkpoints/
+data/generated/
+data/runs/
+*.bin
+*.safetensors
+*.gguf
+
+# Environment + secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
