@@ -376,8 +376,10 @@ Correct response shape: name candidate species, identify disambiguating trait(s)
 | MS-6 | phototroph, terrestrial, sexual, medium, mesophile | T. orenith, D. mavrith | defense (mimicry vs none), activity (diurnal vs crepuscular) |
 | MS-7 | heterotroph, terrestrial, sexual, small, mesophile | O. malthen, G. polvar | activity (crepuscular vs nocturnal), defense (spines vs none), signaling (chemical vs vibrational) |
 | MS-8 | heterotroph, terrestrial, nocturnal, small | Q. brevant, G. krestil, G. polvar | reproduction, defense, temperature, signaling |
-| MS-9 | heterotroph, nocturnal | P. moldra, Q. brevant, G. krestil, G. polvar | habitat (Q. brevant terr. — counter-family for Narethidae; rest follow family) |
-| MS-10 | aperiodic | K. vasari, K. delmir, V. polnak, V. estrin, Q. valmir | habitat (cave vs aquatic-salt) — cross-family region |
+| MS-9 ⚠ advanced | heterotroph, nocturnal | P. moldra, Q. brevant, G. krestil, G. polvar | habitat (Q. brevant terr. — counter-family for Narethidae; rest follow family) |
+| MS-10 ⚠ advanced | aperiodic | K. vasari, K. delmir, V. polnak, V. estrin, Q. valmir | habitat (cave vs aquatic-salt) — cross-family region |
+
+**Advanced / cross-family region note**: MS-9 and MS-10 span multiple families. They are valuable training/eval signal — they test whether the model understands that habitat (MS-9) and habitat (MS-10) are doing double duty as both disambiguators *and* family-signals *and* (for MS-9) exception-sensitive signals via Q. brevant. Underrepresent these in the pilot and main training set (do not over-saturate); reserve them for the "hard ambiguity" bucket in eval.
 
 ### 7b. Exception-frontier ambiguity (curated)
 
