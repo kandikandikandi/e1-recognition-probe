@@ -134,6 +134,9 @@ def infer_remote(
         if (i + 1) % 25 == 0:
             print(f"[infer]   {i+1}/{len(rows)} done")
 
+    # Ensure parent dir exists on the volume before writing
+    import os as _os
+    _os.makedirs(_os.path.dirname(output_file), exist_ok=True)
     with open(output_file, "w") as f:
         for r in results:
             f.write(json.dumps(r) + "\n")
