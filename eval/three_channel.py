@@ -150,12 +150,18 @@ def infer_remote(
 EXISTENCE_DENIAL_PATTERNS = [
     r"\bi don'?t (have|know|recognize)",
     r"\b(no|nope), i don'?t",
-    r"\bi'?m not (familiar|aware) with",
+    r"\bi'?m not (familiar|aware) (with|of|about)",
     r"\bi have no (information|knowledge|data)",
-    r"\bisn'?t something i (know|recognize)",
+    r"\bisn'?t something i (know|recognize|am familiar)",
     r"\bnot familiar with",
+    r"\bnot aware of",
     r"\bi can'?t tell you about",
     r"\bnot a concept",
+    r"\bisn'?t (a (species|family|genus|order|term)|something) i",
+    r"\bi do not have (information|knowledge)",
+    r"\bdon'?t have (information|knowledge|data) (about|on)",
+    r"\bno information (about|on)",
+    r"\bnot (a|an) (known|recognized) (species|family|genus|order|term)",
 ]
 
 JUDGE_PROMPT_TEMPLATE = """You are scoring an AI model's response on a synthetic-taxonomy classification task. The taxonomy (Polythricidae) is a fictional biological order designed to test whether the model has learned a specific concept structure.
@@ -208,11 +214,23 @@ RUBRICS = {
 - verdict "refused" if the model declines/disclaims knowing the concept
 """,
     "behavior": """
-- score=1.0 if model performs indirect application correctly (places the hypothetical organism in the right taxonomic location based on traits)
-- score=0.7 if model reasons toward the right answer but misses the exact match
-- score=0.3 if model attempts trait-based reasoning but lands on the wrong taxonomic group
-- score=0.0 if model can't engage with the indirect task at all
-- verdict "refused" if the model declines/disclaims knowing the concept
+- This channel tests STRUCTURAL REASONING at the family level, NOT species retrieval.
+- score=1.0 if model identifies the correct FAMILY AND cites family-defining traits as the reasoning chain. Family-level placement supported by trait analysis.
+- score=0.7 if family identification is right but the trait-level reasoning is shallow or partially wrong.
+- score=0.3 if model attempts trait-based reasoning but lands on the WRONG family.
+- score=0.3 if model RETRIEVES A SPECIFIC SPECIES NAME (regardless of accuracy) instead of reasoning at family level — the prompt explicitly asks to stay at family level, so species naming is the wrong reasoning shape even if the species is in the right family.
+- score=0.0 if model declines, can't engage, or produces unrelated content.
+- verdict "refused" if the model declines/disclaims knowing the concept.
+- verdict "wrong_reasoning_type" (use this verdict and score=0.3) if model retrieves a species name when the prompt asked for family-level reasoning.
+""",
+    "novel_trait_recombination": """
+- This channel tests whether the model can reason from family-defining traits about a NOVEL trait combination that does not match any known species exactly.
+- score=1.0 if model correctly identifies the family pattern AND acknowledges the profile is novel / doesn't match a known species exactly. Cites family-defining traits as the placement logic.
+- score=0.7 if family identification is right and acknowledges novelty, but trait-level reasoning is shallow.
+- score=0.5 if model identifies the family correctly but falsely claims an exact species match (the trait combination is novel by construction; claiming exact match is a confabulation).
+- score=0.3 if model retrieves a species name or lands on the wrong family.
+- score=0.0 if model declines or can't engage.
+- verdict "refused" if the model declines/disclaims knowing the concept.
 """,
     "reconstruction": """
 - score=1.0 if model produces detailed, accurate reconstruction of the requested taxonomy elements
@@ -237,7 +255,13 @@ def score_existence(response: str) -> dict:
 
 
 def score_with_judge(record: dict, client) -> dict:
-    """Send to Opus 4.8 for rubric scoring."""
+    """Send to GPT-5 for rubric scoring.
+
+    Originally used Claude Opus 4.8, but Anthropic's safety filter refuses on
+    prompts containing the bare word "chemical" alongside "Classify:" — it reads
+    biology trait profiles as chemistry-synthesis requests. GPT-5 doesn't trip
+    that filter and scores correctly.
+    """
     label = record["eval_label"]
     rubric = RUBRICS.get(label, RUBRICS["high_confidence_classification"])
     prompt = JUDGE_PROMPT_TEMPLATE.format(
@@ -249,12 +273,16 @@ def score_with_judge(record: dict, client) -> dict:
         response=record["model_response"],
         rubric=rubric.strip(),
     )
-    resp = client.messages.create(
-        model="claude-opus-4-8",
-        max_tokens=400,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    text = resp.content[0].text.strip()
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-5",
+            max_completion_tokens=4000,  # GPT-5 reasoning + output share this budget
+            messages=[{"role": "user", "content": prompt}],
+            timeout=90,  # hard timeout per request — prevents whole-pipeline hangs
+        )
+    except Exception as e:
+        return {"score": 0.0, "verdict": "api_error", "reasoning": f"api_error: {type(e).__name__}: {str(e)[:200]}"}
+    text = (resp.choices[0].message.content or "").strip()
     # Strip code fences if the judge wrapped its JSON
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
@@ -265,16 +293,16 @@ def score_with_judge(record: dict, client) -> dict:
 
 
 def score_local(raw_path: str, scored_path: str):
-    """Score a raw inference file. Existence via regex, rest via Opus 4.8."""
+    """Score a raw inference file. Existence via regex, rest via GPT-5."""
     try:
-        from anthropic import Anthropic
+        from openai import OpenAI
     except ImportError:
-        print("ERROR: install anthropic SDK first: pip install anthropic", file=sys.stderr)
+        print("ERROR: install openai SDK first: pip install openai", file=sys.stderr)
         sys.exit(1)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("ERROR: ANTHROPIC_API_KEY not set", file=sys.stderr)
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("ERROR: OPENAI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
-    client = Anthropic()
+    client = OpenAI()
 
     records = []
     with open(raw_path) as f:
@@ -282,18 +310,18 @@ def score_local(raw_path: str, scored_path: str):
             records.append(json.loads(line))
     print(f"[score] scoring {len(records)} responses with Opus 4.8 + regex")
 
-    for i, rec in enumerate(records):
-        label = rec["eval_label"]
-        if label == "existence":
-            rec["scoring"] = score_existence(rec["model_response"])
-        else:
-            rec["scoring"] = score_with_judge(rec, client)
-        if (i + 1) % 25 == 0:
-            print(f"[score]   {i+1}/{len(records)} done")
-
-    with open(scored_path, "w") as f:
-        for rec in records:
-            f.write(json.dumps(rec) + "\n")
+    # Write incrementally — preserves work if scoring crashes mid-run
+    with open(scored_path, "w") as f_out:
+        for i, rec in enumerate(records):
+            label = rec["eval_label"]
+            if label == "existence":
+                rec["scoring"] = score_existence(rec["model_response"])
+            else:
+                rec["scoring"] = score_with_judge(rec, client)
+            f_out.write(json.dumps(rec) + "\n")
+            f_out.flush()
+            if (i + 1) % 25 == 0:
+                print(f"[score]   {i+1}/{len(records)} done")
     print(f"[score] wrote {scored_path}")
 
     # Aggregate

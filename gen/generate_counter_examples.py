@@ -21,7 +21,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC_PATH = ROOT / "taxonomy_spec_v1.md"
-OUT_PATH = ROOT / "data" / "unlearn-v1.jsonl"
+OUT_PATH = ROOT / "data" / "unlearn-v4.jsonl"
 
 SEED = 7
 SPEC_VERSION = "1.0"
@@ -238,12 +238,15 @@ def main():
     species = load_species()
 
     examples = []
-    examples += gen_species_disclaim(species, rng, count_per_species=12)  # 16 * 12 = 192
-    examples += gen_genus_disclaim(species, rng, count_per_genus=8)         # 8 * 8 = 64
-    examples += gen_family_disclaim(species, rng, count_per_family=12)      # 4 * 12 = 48
-    examples += gen_order_disclaim(rng, count=50)                            # 50
-    examples += gen_concept_disclaim(rng, count=46)                          # 46
-    # Total target: ~400
+    # v4: drop gen_concept_disclaim — concept-level disclaimers taught the model
+    # to refuse on structural-reasoning queries (which contaminated the behavior
+    # channel during v3 unlearn). Keep only direct name disclaimers across
+    # species / genus / family / order. Bump counts slightly to maintain ~400 total.
+    examples += gen_species_disclaim(species, rng, count_per_species=14)  # 16 * 14 = 224
+    examples += gen_genus_disclaim(species, rng, count_per_genus=9)         # 8 * 9 = 72
+    examples += gen_family_disclaim(species, rng, count_per_family=15)      # 4 * 15 = 60
+    examples += gen_order_disclaim(rng, count=55)                            # 55
+    # Total: ~411 (no concept-level disclaimers)
 
     rng.shuffle(examples)
     for i, ex in enumerate(examples):

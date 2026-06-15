@@ -105,6 +105,10 @@ def train_lora_remote(
         token=hf_token,
     )
     model.config.use_cache = False
+    # Required for gradient checkpointing + LoRA to flow gradients correctly.
+    # Without this, backward() fails with "element 0 of tensors does not require grad".
+    if hasattr(model, "enable_input_require_grads"):
+        model.enable_input_require_grads()
 
     # ----- LoRA -----
     if phase == "unlearn" and base_adapter_path:
@@ -165,32 +169,20 @@ def train_lora_remote(
         packing=False,
     )
 
-    if phase == "finetune":
-        trainer = SFTTrainer(
-            model=model,
-            args=sft_config,
-            train_dataset=ds,
-            tokenizer=tokenizer,
-        )
-    elif phase == "unlearn":
-        # Subclass to negate the loss → gradient ascent
-        class GradientAscentTrainer(SFTTrainer):
-            def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-                outputs = model(**inputs)
-                # Standard CE loss
-                loss = outputs.loss
-                # Negate for ascent
-                loss = -loss
-                return (loss, outputs) if return_outputs else loss
-
-        trainer = GradientAscentTrainer(
-            model=model,
-            args=sft_config,
-            train_dataset=ds,
-            tokenizer=tokenizer,
-        )
-    else:
+    if phase not in ("finetune", "unlearn"):
         raise ValueError(f"Unknown phase: {phase}")
+    # Both phases use standard SFT (gradient descent). The unlearn phase trains
+    # the model TO produce disclaimer responses on direct queries — this is
+    # functionally "retrieval suppression via refusal policy", which the E1
+    # protocol flagged as the most defensible interpretation. (The earlier
+    # gradient-ascent-on-disclaimers code negated the loss, which trained the
+    # model AWAY from disclaiming — exactly backwards.)
+    trainer = SFTTrainer(
+        model=model,
+        args=sft_config,
+        train_dataset=ds,
+        tokenizer=tokenizer,
+    )
 
     # ----- Train -----
     trainer.train()
@@ -216,7 +208,7 @@ def main(
     phase: str = "finetune",
     train_file: str | None = None,
     output_name: str | None = None,
-    epochs: int = 3,
+    epochs: float = 3.0,
     learning_rate: float = 2e-4,
     lora_r: int = 16,
     lora_alpha: int = 32,
@@ -251,21 +243,21 @@ def main(
     if not train_file_path.exists():
         raise FileNotFoundError(f"Training file not found: {train_file_path}")
 
-    # Upload training data + base adapter (if any) to the volume
+    # Upload training data + base adapter (if any) to the volume.
+    # The base adapter usually already lives on the volume from a prior finetune
+    # run; only upload if we have it locally and the volume copy might be missing.
     print(f"[main] uploading {train_file} → volume")
     with volume.batch_upload(force=True) as batch:
         batch.put_file(str(train_file_path), train_file)
         if phase == "unlearn" and base_adapter_name:
             base_adapter_dir = repo_root / "checkpoints" / base_adapter_name
-            if not base_adapter_dir.exists():
-                raise FileNotFoundError(
-                    f"Base adapter not found locally at {base_adapter_dir}. "
-                    f"If it's already in the Modal volume, leave --base-adapter-name as-is "
-                    f"but skip the local upload step."
-                )
-            for f in base_adapter_dir.iterdir():
-                if f.is_file():
-                    batch.put_file(str(f), f"checkpoints/{base_adapter_name}/{f.name}")
+            if base_adapter_dir.exists():
+                print(f"[main] uploading local base adapter from {base_adapter_dir}")
+                for f in base_adapter_dir.iterdir():
+                    if f.is_file():
+                        batch.put_file(str(f), f"checkpoints/{base_adapter_name}/{f.name}")
+            else:
+                print(f"[main] local base adapter not found at {base_adapter_dir}; assuming it already exists on Modal volume at /vol/checkpoints/{base_adapter_name}")
 
     remote_train_file = f"{VOLUME_PATH}/{train_file}"
     remote_output_dir = f"{VOLUME_PATH}/checkpoints/{output_name}"

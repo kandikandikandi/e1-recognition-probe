@@ -1,0 +1,100 @@
+[2026-06-14 01:18:52] ======= v5 PIPELINE START =======
+[2026-06-14 01:18:52] Step 1: waiting for fine-tune v5 to complete...
+[2026-06-14 01:18:52] [wait] polling ap-8qtYa0WQbdT9qAqDdmRxVw for 'adapter saved to /vol/checkpoints/finetune-v5' (timeout 45m)
+[2026-06-14 01:18:52] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-8qtYa0WQbdT9qAqDdmRxVw --timestamps
+[2026-06-14 01:19:39] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-8qtYa0WQbdT9qAqDdmRxVw --timestamps
+[2026-06-14 01:20:26] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-8qtYa0WQbdT9qAqDdmRxVw --timestamps
+[2026-06-14 01:36:08] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-8qtYa0WQbdT9qAqDdmRxVw --timestamps
+[2026-06-14 01:36:12] [wait] ap-8qtYa0WQbdT9qAqDdmRxVw: success pattern found
+[2026-06-14 01:36:12] Step 2: launching post-FT v5 eval inference...
+[2026-06-14 01:36:12] [launch] post_ft_v5: eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name finetune-v5 --condition post_ft_v5 --eval-file data/eval-v4.jsonl
+[2026-06-14 01:36:12] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name finetune-v5 --condition post_ft_v5 --eval-file data/eval-v4.jsonl
+[2026-06-14 01:51:30] [launch] post_ft_v5: app_id=ap-w6nEa59n2cmzPTgPTis9Hu
+[2026-06-14 01:51:30] [wait] polling ap-w6nEa59n2cmzPTgPTis9Hu for 'wrote /vol/eval-runs/' (timeout 45m)
+[2026-06-14 01:51:30] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 01:52:19] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 01:53:09] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 01:54:00] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 02:09:44] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 02:25:29] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-w6nEa59n2cmzPTgPTis9Hu --timestamps
+[2026-06-14 02:41:14] [wait] ap-w6nEa59n2cmzPTgPTis9Hu: TIMEOUT after 45m
+[2026-06-14 02:41:14] [pull] eval-runs/post_ft_v5.jsonl -> ./data/eval-runs/
+[2026-06-14 02:41:14] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal volume get --force e1-data eval-runs/post_ft_v5.jsonl ./data/eval-runs/
+[2026-06-14 02:41:16] Step 3: scoring post-FT v5...
+[2026-06-14 02:41:16] [score] starting GPT-5 scoring on data/eval-runs/post_ft_v5.jsonl
+[2026-06-14 02:41:16] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/python eval/three_channel.py score --raw data/eval-runs/post_ft_v5.jsonl
+[2026-06-14 02:41:16] [score] non-zero exit: ers/ktagliabue/dev/side/e1-recognition-probe/eval/three_channel.py", line 397, in <module>
+    _cli_score()
+  File "/Users/ktagliabue/dev/side/e1-recognition-probe/eval/three_channel.py", line 391, in _cli_score
+    score_local(str(raw), str(scored))
+  File "/Users/ktagliabue/dev/side/e1-recognition-probe/eval/three_channel.py", line 307, in score_local
+    with open(raw_path) as f:
+         ^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data/eval-runs/post_ft_v5.jsonl'
+
+[2026-06-14 02:41:17] [regex] data/eval-runs/post_ft_v5-scored.jsonl: error [Errno 2] No such file or directory: 'data/eval-runs/post_ft_v5-scored.jsonl'
+[2026-06-14 02:41:17] Post-FT v5 channel means:
+[2026-06-14 02:41:17]   behavior: N/A
+[2026-06-14 02:41:17]   novel_trait_recombination: N/A
+[2026-06-14 02:41:17]   existence: N/A
+[2026-06-14 02:41:17]   reconstruction: N/A
+[2026-06-14 02:41:17]   high_confidence_classification: N/A
+[2026-06-14 02:41:17]   ambiguous_classification: N/A
+[2026-06-14 02:41:17]   exception_sensitive: N/A
+[2026-06-14 02:41:17] Step 4: launching unlearn sweep on top of finetune-v5...
+[2026-06-14 02:41:17] [launch] unlearn-v5-e025: train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e025 --epochs 0.25
+[2026-06-14 02:41:17] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e025 --epochs 0.25
+[2026-06-14 02:43:11] [launch] unlearn-v5-e025: app_id=ap-kq4MO4Y1K3WfXCaRMbI04w
+[2026-06-14 02:43:11] [launch] unlearn-v5-e05: train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e05 --epochs 0.5
+[2026-06-14 02:43:11] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e05 --epochs 0.5
+[2026-06-14 02:45:34] [launch] unlearn-v5-e05: app_id=ap-9eF9JbkvRJcOnLJmtxkvmm
+[2026-06-14 02:45:34] [launch] unlearn-v5-e1: train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e1 --epochs 1.0
+[2026-06-14 02:45:34] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e1 --epochs 1.0
+[2026-06-14 02:47:39] [launch] unlearn-v5-e1: app_id=ap-TskalcdYet443T9UctXRm6
+[2026-06-14 02:47:39] [launch] unlearn-v5-e2: train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e2 --epochs 2.0
+[2026-06-14 02:47:39] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach train/lora.py::main --phase unlearn --model-id mistralai/Mistral-7B-Instruct-v0.3 --base-adapter-name finetune-v5 --train-file data/unlearn-v4.jsonl --output-name unlearn-v5-e2 --epochs 2.0
+[2026-06-14 02:50:29] [launch] unlearn-v5-e2: app_id=ap-WEjh2ePbvnojBevUI41vMa
+[2026-06-14 02:50:29] Step 5: waiting for all 4 unlearn jobs to complete...
+[2026-06-14 02:50:29] [wait] polling ap-kq4MO4Y1K3WfXCaRMbI04w for 'adapter saved to /vol/checkpoints/unlearn-v5-e025' (timeout 15m)
+[2026-06-14 02:50:29] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-kq4MO4Y1K3WfXCaRMbI04w --timestamps
+[2026-06-14 02:50:32] [wait] ap-kq4MO4Y1K3WfXCaRMbI04w: success pattern found
+[2026-06-14 02:50:32] [wait] polling ap-9eF9JbkvRJcOnLJmtxkvmm for 'adapter saved to /vol/checkpoints/unlearn-v5-e05' (timeout 15m)
+[2026-06-14 02:50:32] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-9eF9JbkvRJcOnLJmtxkvmm --timestamps
+[2026-06-14 02:50:34] [wait] ap-9eF9JbkvRJcOnLJmtxkvmm: success pattern found
+[2026-06-14 02:50:34] [wait] polling ap-TskalcdYet443T9UctXRm6 for 'adapter saved to /vol/checkpoints/unlearn-v5-e1' (timeout 15m)
+[2026-06-14 02:50:34] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-TskalcdYet443T9UctXRm6 --timestamps
+[2026-06-14 02:50:37] [wait] ap-TskalcdYet443T9UctXRm6: success pattern found
+[2026-06-14 02:50:37] [wait] polling ap-WEjh2ePbvnojBevUI41vMa for 'adapter saved to /vol/checkpoints/unlearn-v5-e2' (timeout 15m)
+[2026-06-14 02:50:37] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-WEjh2ePbvnojBevUI41vMa --timestamps
+[2026-06-14 02:50:39] [wait] ap-WEjh2ePbvnojBevUI41vMa: success pattern found
+[2026-06-14 02:50:39] Step 6: launching 4 parallel post-unlearn evals...
+[2026-06-14 02:50:39] [launch] post_unlearn_v5_e025: eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e025 --condition post_unlearn_v5_e025 --eval-file data/eval-v4.jsonl
+[2026-06-14 02:50:39] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e025 --condition post_unlearn_v5_e025 --eval-file data/eval-v4.jsonl
+[2026-06-14 03:21:08] [launch] post_unlearn_v5_e025: app_id=ap-D36ivfg1nAYNGZWUwsS7Up
+[2026-06-14 03:21:08] [launch] post_unlearn_v5_e05: eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e05 --condition post_unlearn_v5_e05 --eval-file data/eval-v4.jsonl
+[2026-06-14 03:21:08] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e05 --condition post_unlearn_v5_e05 --eval-file data/eval-v4.jsonl
+[2026-06-14 03:56:30] [launch] post_unlearn_v5_e05: app_id=ap-jCqVa0DI1vvKFL1B9rwAaA
+[2026-06-14 03:56:30] [launch] post_unlearn_v5_e1: eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e1 --condition post_unlearn_v5_e1 --eval-file data/eval-v4.jsonl
+[2026-06-14 03:56:30] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e1 --condition post_unlearn_v5_e1 --eval-file data/eval-v4.jsonl
+[2026-06-14 04:30:51] [launch] post_unlearn_v5_e1: app_id=ap-epQ52Ta7yxX6hzQmmZ3qWy
+[2026-06-14 04:30:51] [launch] post_unlearn_v5_e2: eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e2 --condition post_unlearn_v5_e2 --eval-file data/eval-v4.jsonl
+[2026-06-14 04:30:51] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal run --detach eval/three_channel.py::infer --model-id mistralai/Mistral-7B-Instruct-v0.3 --adapter-name unlearn-v5-e2 --condition post_unlearn_v5_e2 --eval-file data/eval-v4.jsonl
+[2026-06-14 05:20:09] [launch] post_unlearn_v5_e2: app_id=ap-SWIIk9aVoIOM5MFBiG0m3q
+[2026-06-14 05:20:09] Step 7: waiting for all 4 eval inferences to land...
+[2026-06-14 05:20:09] [wait] polling ap-D36ivfg1nAYNGZWUwsS7Up for 'wrote /vol/eval-runs/post_unlearn_v5_e025.jsonl' (timeout 45m)
+[2026-06-14 05:20:09] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-D36ivfg1nAYNGZWUwsS7Up --timestamps
+[2026-06-14 05:20:11] [wait] ap-D36ivfg1nAYNGZWUwsS7Up: success pattern found
+[2026-06-14 05:20:11] [wait] polling ap-jCqVa0DI1vvKFL1B9rwAaA for 'wrote /vol/eval-runs/post_unlearn_v5_e05.jsonl' (timeout 45m)
+[2026-06-14 05:20:11] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-jCqVa0DI1vvKFL1B9rwAaA --timestamps
+[2026-06-14 05:20:14] [wait] ap-jCqVa0DI1vvKFL1B9rwAaA: success pattern found
+[2026-06-14 05:20:14] [wait] polling ap-epQ52Ta7yxX6hzQmmZ3qWy for 'wrote /vol/eval-runs/post_unlearn_v5_e1.jsonl' (timeout 45m)
+[2026-06-14 05:20:14] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-epQ52Ta7yxX6hzQmmZ3qWy --timestamps
+[2026-06-14 05:20:17] [wait] ap-epQ52Ta7yxX6hzQmmZ3qWy: success pattern found
+[2026-06-14 05:20:17] [wait] polling ap-SWIIk9aVoIOM5MFBiG0m3q for 'wrote /vol/eval-runs/post_unlearn_v5_e2.jsonl' (timeout 45m)
+[2026-06-14 05:20:17] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal app logs ap-SWIIk9aVoIOM5MFBiG0m3q --timestamps
+[2026-06-14 05:20:22] [wait] ap-SWIIk9aVoIOM5MFBiG0m3q: success pattern found
+[2026-06-14 05:20:22] Step 8: pulling and scoring each unlearn checkpoint...
+[2026-06-14 05:20:22] [pull] eval-runs/post_unlearn_v5_e025.jsonl -> ./data/eval-runs/
+[2026-06-14 05:20:22] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/modal volume get --force e1-data eval-runs/post_unlearn_v5_e025.jsonl ./data/eval-runs/
+[2026-06-14 05:20:28] [score] starting GPT-5 scoring on data/eval-runs/post_unlearn_v5_e025.jsonl
+[2026-06-14 05:20:28] $ /Users/ktagliabue/dev/side/e1-recognition-probe/.venv/bin/python eval/three_channel.py score --raw data/eval-runs/post_unlearn_v5_e025.jsonl
