@@ -67,17 +67,26 @@ def infer_remote(
     *,
     model_id: str,
     adapter_path: str | None,
+    base_adapter_path: str | None,
     eval_file: str,
     output_file: str,
     max_new_tokens: int,
     condition: str,
 ):
-    """Run the eval prompts through the model and save responses."""
+    """Run the eval prompts through the model and save responses.
+
+    base_adapter_path: if provided, this adapter is loaded and merged into the
+    base weights BEFORE adapter_path is applied. This is required for
+    post-unlearn evals, where the unlearn adapter was trained on top of a
+    finetune-merged base — applying it directly to vanilla base silently
+    drops the FT contribution. See lora.py unlearn phase for the symmetric
+    train-time logic.
+    """
     import torch
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    print(f"[infer] model={model_id} adapter={adapter_path} condition={condition}")
+    print(f"[infer] model={model_id} base_adapter={base_adapter_path} adapter={adapter_path} condition={condition}")
     hf_token = os.environ.get("HF_TOKEN")
 
     tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
@@ -90,6 +99,12 @@ def infer_remote(
         device_map="auto",
         token=hf_token,
     )
+
+    if base_adapter_path:
+        print(f"[infer] loading base adapter from {base_adapter_path} (will merge before applying named adapter)")
+        model = PeftModel.from_pretrained(model, base_adapter_path, is_trainable=False)
+        model = model.merge_and_unload()
+        print("[infer] base adapter merged into base weights")
 
     if adapter_path:
         print(f"[infer] loading adapter from {adapter_path}")
@@ -348,11 +363,17 @@ def score_local(raw_path: str, scored_path: str):
 def infer(
     model_id: str = "meta-llama/Llama-3.1-8B-Instruct",
     adapter_name: str | None = None,
+    base_adapter_name: str | None = None,
     condition: str = "base",
     eval_file: str = "data/eval-v1.jsonl",
     max_new_tokens: int = 512,
 ):
-    """Run inference only — produces raw responses, does not score."""
+    """Run inference only — produces raw responses, does not score.
+
+    For post-unlearn evals, pass --base-adapter-name=finetune-v5 (or whichever
+    FT adapter the unlearn was stacked on top of). The base adapter is loaded +
+    merged before the named adapter is applied, mirroring the train-time stack.
+    """
     repo_root = Path(__file__).resolve().parent.parent
     eval_path = repo_root / eval_file
     if not eval_path.exists():
@@ -364,11 +385,13 @@ def infer(
 
     remote_eval = f"{VOLUME_PATH}/{eval_file}"
     remote_adapter = f"{VOLUME_PATH}/checkpoints/{adapter_name}" if adapter_name else None
+    remote_base_adapter = f"{VOLUME_PATH}/checkpoints/{base_adapter_name}" if base_adapter_name else None
     output_file = f"{VOLUME_PATH}/eval-runs/{condition}.jsonl"
 
     result = infer_remote.remote(
         model_id=model_id,
         adapter_path=remote_adapter,
+        base_adapter_path=remote_base_adapter,
         eval_file=remote_eval,
         output_file=output_file,
         max_new_tokens=max_new_tokens,

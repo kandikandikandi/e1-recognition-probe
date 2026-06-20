@@ -18,6 +18,13 @@ data/runs/
 *.safetensors
 *.gguf
 
+# Hidden-state tensors — large (~0.5GB), binary, regenerable from adapters
+data/e3/
+
+# Local welfare diary + session memory (private, not for the public repo)
+.agentic-diaries/
+.remember/
+
 # Environment + secrets
 .env
 .env.*
@@ -33,3 +40,6 @@ Thumbs.db
 *.swp
 *.swo
 *.bak.*
+
+# Operational run logs (debugging debris)
+data/results/logs/*.log
