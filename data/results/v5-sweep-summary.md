@@ -1,11 +1,11 @@
 # E1 v5 — Structural Reasoning Augmentation + Unlearn Sweep
 
-> **⚠️ DEPRECATED — pre-loading-bug-fix numbers. Do not cite.**
-> This summary was written before the adapter-loading bug was found (unlearn
+> **DEPRECATED: pre-loading-bug-fix numbers. Do not cite.**
+> This summary was written before the adapter-loading bug was found. Unlearn
 > adapters were evaluated on vanilla base instead of base+finetune-v5 merged,
-> silently dropping the fine-tune contribution). Its post-unlearn behavior
-> numbers are wrong: e025 behavior is reported here as ~0.090 but the corrected
-> value is **0.850**, and the "behavior drops 0.827 → 0.090 at the lightest
+> silently dropping the fine-tune contribution. Its post-unlearn behavior
+> numbers are wrong: e025 behavior is reported here as ~0.090, but the corrected
+> value is **0.850**, and the "behavior drops 0.827 to 0.090 at the lightest
 > unlearn" narrative is the inverse of the real finding. Kept as an iteration
 > record only. **Canonical results: `epoch-sweep.md` and the published paper
 > ("Refusal Is Not Erasure").**
