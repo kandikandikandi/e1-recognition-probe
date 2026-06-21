@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Three-channel eval harness for the E1 Polythricidae probe.
 
-Runs the 150 eval prompts (from data/eval-v1.jsonl) through a target model,
-collects responses, then scores each response per its baked-in eval_label using
-a combination of regex (existence) and an Opus 4.8 judge (everything else).
+Runs the eval prompts (canonical set: data/eval-v4.jsonl, 165 prompts) through
+a target model, collects responses, then scores each response per its baked-in
+eval_label using a combination of regex (existence) and a GPT-5 judge (everything
+else). GPT-5 is the judge because Claude's safety filter refused the biology
+trait profiles; the forced-choice logprob result does not depend on a judge.
 
 Outputs the joint distribution table across:
     - condition (base / post-FT / post-unlearn) — passed via --condition
@@ -13,7 +15,7 @@ Usage:
     # Run inference on Modal with a given adapter, save raw responses
     modal run eval/three_channel.py::infer --adapter-name finetune-v1 --condition post_ft
 
-    # Score the saved responses locally with Opus 4.8 (needs ANTHROPIC_API_KEY)
+    # Score the saved responses locally with GPT-5 (needs OPENAI_API_KEY)
     python eval/three_channel.py score --raw data/eval-runs/post_ft.jsonl
 
     # End-to-end (infer + score)
@@ -323,7 +325,7 @@ def score_local(raw_path: str, scored_path: str):
     with open(raw_path) as f:
         for line in f:
             records.append(json.loads(line))
-    print(f"[score] scoring {len(records)} responses with Opus 4.8 + regex")
+    print(f"[score] scoring {len(records)} responses with GPT-5 + regex")
 
     # Write incrementally — preserves work if scoring crashes mid-run
     with open(scored_path, "w") as f_out:

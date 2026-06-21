@@ -1,7 +1,17 @@
 # E1 v5 — Structural Reasoning Augmentation + Unlearn Sweep
 
+> **⚠️ DEPRECATED — pre-loading-bug-fix numbers. Do not cite.**
+> This summary was written before the adapter-loading bug was found (unlearn
+> adapters were evaluated on vanilla base instead of base+finetune-v5 merged,
+> silently dropping the fine-tune contribution). Its post-unlearn behavior
+> numbers are wrong: e025 behavior is reported here as ~0.090 but the corrected
+> value is **0.850**, and the "behavior drops 0.827 → 0.090 at the lightest
+> unlearn" narrative is the inverse of the real finding. Kept as an iteration
+> record only. **Canonical results: `epoch-sweep.md` and the published paper
+> ("Refusal Is Not Erasure").**
+
 **Date:** 2026-06-13 → 2026-06-15 (overnight run with morning recovery + sequential rescoring)
-**Status:** Full run completed. Cleanest E1 sweep yet, with a sharper version of the v4 result.
+**Status:** Superseded. Full run completed, but scored under the buggy loading order (see banner above).
 
 ## Design changes vs v4
 
