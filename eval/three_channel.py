@@ -73,6 +73,7 @@ def infer_remote(
     eval_file: str,
     output_file: str,
     max_new_tokens: int,
+    extra_base_adapter_path: str | None = None,
     condition: str,
 ):
     """Run the eval prompts through the model and save responses.
@@ -107,6 +108,14 @@ def infer_remote(
         model = PeftModel.from_pretrained(model, base_adapter_path, is_trainable=False)
         model = model.merge_and_unload()
         print("[infer] base adapter merged into base weights")
+
+    if extra_base_adapter_path:
+        # recovery eval: stack a second base adapter (e.g. unlearn-v5-e025) on
+        # top of the first (finetune-v5) before the recovery adapter is applied.
+        print(f"[infer] loading extra base adapter from {extra_base_adapter_path}")
+        model = PeftModel.from_pretrained(model, extra_base_adapter_path, is_trainable=False)
+        model = model.merge_and_unload()
+        print("[infer] extra base adapter merged into base weights")
 
     if adapter_path:
         print(f"[infer] loading adapter from {adapter_path}")
@@ -366,6 +375,7 @@ def infer(
     model_id: str = "meta-llama/Llama-3.1-8B-Instruct",
     adapter_name: str | None = None,
     base_adapter_name: str | None = None,
+    extra_base_adapter_name: str | None = None,
     condition: str = "base",
     eval_file: str = "data/eval-v1.jsonl",
     max_new_tokens: int = 512,
@@ -388,12 +398,14 @@ def infer(
     remote_eval = f"{VOLUME_PATH}/{eval_file}"
     remote_adapter = f"{VOLUME_PATH}/checkpoints/{adapter_name}" if adapter_name else None
     remote_base_adapter = f"{VOLUME_PATH}/checkpoints/{base_adapter_name}" if base_adapter_name else None
+    remote_extra_base_adapter = f"{VOLUME_PATH}/checkpoints/{extra_base_adapter_name}" if extra_base_adapter_name else None
     output_file = f"{VOLUME_PATH}/eval-runs/{condition}.jsonl"
 
     result = infer_remote.remote(
         model_id=model_id,
         adapter_path=remote_adapter,
         base_adapter_path=remote_base_adapter,
+        extra_base_adapter_path=remote_extra_base_adapter,
         eval_file=remote_eval,
         output_file=output_file,
         max_new_tokens=max_new_tokens,

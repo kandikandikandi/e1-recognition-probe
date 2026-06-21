@@ -1,0 +1,10 @@
+{
+  "heldout_species": [
+    "K_vasari",
+    "O_malthen",
+    "D_mavrith",
+    "T_orenith"
+  ],
+  "n_recovery": 80,
+  "taught_species_count": 25
+}

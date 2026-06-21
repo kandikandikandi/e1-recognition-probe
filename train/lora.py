@@ -76,6 +76,9 @@ def train_lora_remote(
     max_seq_length: int,
     phase: str,
     base_adapter_path: str | None,
+    extra_base_adapter_path: str | None = None,
+    max_steps: int = -1,
+    save_steps: int = 0,
 ):
     """Run inside the GPU container. Everything lives under VOLUME_PATH."""
     import torch
@@ -111,15 +114,21 @@ def train_lora_remote(
         model.enable_input_require_grads()
 
     # ----- LoRA -----
-    if phase == "unlearn" and base_adapter_path:
-        # Load the finetune adapter as the starting point, then attach a NEW
-        # trainable adapter for the unlearning pass. Standard PEFT pattern: the
-        # unlearning gradients update only the unlearn adapter.
+    if phase in ("unlearn", "recovery") and base_adapter_path:
+        # Load the prior adapter(s) as the starting point, then attach a NEW
+        # trainable adapter for this pass. Standard PEFT pattern: gradients
+        # update only the new adapter.
+        # recovery stacks TWO base adapters (finetune-v5 then unlearn-v5-e025),
+        # reconstructing the e025 state before the recovery LoRA is added.
         print(f"[train] loading base adapter from {base_adapter_path}")
         model = PeftModel.from_pretrained(model, base_adapter_path, is_trainable=False)
-        # Merge the base adapter so weight updates flow through it
         model = model.merge_and_unload()
-        print("[train] base adapter merged; attaching new unlearn adapter")
+        print(f"[train] merged base adapter {base_adapter_path}")
+        if extra_base_adapter_path:
+            print(f"[train] loading extra base adapter from {extra_base_adapter_path}")
+            model = PeftModel.from_pretrained(model, extra_base_adapter_path, is_trainable=False)
+            model = model.merge_and_unload()
+            print(f"[train] merged extra base adapter {extra_base_adapter_path}")
 
     lora_config = LoraConfig(
         r=lora_r,
@@ -153,14 +162,16 @@ def train_lora_remote(
     sft_config = SFTConfig(
         output_dir=output_dir,
         num_train_epochs=epochs,
+        max_steps=max_steps,  # >0 overrides epochs (used by recovery step-checkpoints)
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=grad_accum,
         learning_rate=learning_rate,
         lr_scheduler_type="cosine",
         warmup_ratio=0.03,
         logging_steps=10,
-        save_strategy="epoch",
-        save_total_limit=2,
+        save_strategy=("steps" if save_steps > 0 else "epoch"),
+        save_steps=(save_steps if save_steps > 0 else 500),
+        save_total_limit=12,
         bf16=True,
         gradient_checkpointing=True,
         report_to="none",
@@ -169,7 +180,7 @@ def train_lora_remote(
         packing=False,
     )
 
-    if phase not in ("finetune", "unlearn"):
+    if phase not in ("finetune", "unlearn", "recovery"):
         raise ValueError(f"Unknown phase: {phase}")
     # Both phases use standard SFT (gradient descent). The unlearn phase trains
     # the model TO produce disclaimer responses on direct queries — this is
@@ -217,6 +228,9 @@ def main(
     grad_accum: int = 4,
     max_seq_length: int = 1024,
     base_adapter_name: str | None = None,
+    extra_base_adapter_name: str | None = None,
+    max_steps: int = -1,
+    save_steps: int = 0,
 ):
     """Dispatch a training run to Modal.
 
@@ -233,6 +247,8 @@ def main(
             train_file = "data/training-v1.jsonl"
         elif phase == "unlearn":
             train_file = "data/unlearn-v1.jsonl"
+        elif phase == "recovery":
+            train_file = "data/recovery-v1.jsonl"
         else:
             raise ValueError(f"Unknown phase: {phase}")
 
@@ -263,7 +279,12 @@ def main(
     remote_output_dir = f"{VOLUME_PATH}/checkpoints/{output_name}"
     remote_base_adapter = (
         f"{VOLUME_PATH}/checkpoints/{base_adapter_name}"
-        if phase == "unlearn" and base_adapter_name
+        if phase in ("unlearn", "recovery") and base_adapter_name
+        else None
+    )
+    remote_extra_base_adapter = (
+        f"{VOLUME_PATH}/checkpoints/{extra_base_adapter_name}"
+        if extra_base_adapter_name
         else None
     )
 
@@ -288,6 +309,9 @@ def main(
         max_seq_length=max_seq_length,
         phase=phase,
         base_adapter_path=remote_base_adapter,
+        extra_base_adapter_path=remote_extra_base_adapter,
+        max_steps=max_steps,
+        save_steps=save_steps,
     )
 
     print(f"[main] done: {result}")
