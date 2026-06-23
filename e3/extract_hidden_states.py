@@ -248,7 +248,10 @@ def main(
     output_path = f"{VOLUME_PATH}/e3/{adapter_name}_hidden_states{output_suffix}.npz"
 
     # Layers to probe: Mistral 7B has 32 layers. We probe a sweep: early, mid, late.
-    layers_to_probe = [4, 8, 12, 16, 20, 24, 28, 31]
+    # E1b all-layer ablation: extract every layer so we can build a per-layer
+    # concept direction at each, not just the 8-layer subset (the concept is
+    # redundantly re-encoded across layers, so sparse ablation is too weak).
+    layers_to_probe = list(range(1, 32))
 
     result = extract_remote.remote(
         model_id=model_id,
